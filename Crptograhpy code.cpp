@@ -67,6 +67,7 @@ int encrypt(int block, int key) {
 
 int main() {
     // Example block and key (8 bits each)
+    //"0b" is prefix to denote the numbers are in binary
     int block = 0b11001010;  // Example block
     int key = 0b10101100;    // Example key
 
