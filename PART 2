@@ -1,0 +1,141 @@
+#include <iostream>
+#include <bitset>
+#include <vector>
+
+using namespace std;
+
+// Define Block and Key Sizes
+const int BLOCK_SIZE = 8;  // Block size in bits
+const int KEY_SIZE = 8;    // Key size in bits
+
+// Implement a Simple Substitution Box (S-box)
+const int S_BOX[16] = {
+    0b1110, 0b0100, 0b1101, 0b0001,
+    0b0010, 0b1111, 0b1011, 0b1000,
+    0b0011, 0b1010, 0b0110, 0b1100,
+    0b0101, 0b1001, 0b0000, 0b0111
+};
+
+int substitute(int nibble) {
+    return S_BOX[nibble];
+}
+
+// Implement a Simplified Permutation
+const int PERMUTATION_TABLE[8] = {1, 5, 2, 0, 3, 7, 4, 6};
+
+int permute(int block) {
+    int permuted_block = 0;
+    for (int i = 0; i < 8; i++) {
+        int bit = (block >> PERMUTATION_TABLE[i]) & 1;
+        permuted_block |= (bit << i);
+    }
+    return permuted_block;
+}
+
+// Implement a Basic Feistel Function
+int feistel_function(int right_half, int key) {
+    return right_half ^ key;
+}
+
+// Combine Components for Encryption
+int encrypt(int block, int key) {
+    int left_half = (block >> 4) & 0x0F;
+    int right_half = block & 0x0F;
+    int feistel_output = feistel_function(right_half, key);
+    int new_right_half = left_half ^ feistel_output;
+    int substituted_left = substitute(new_right_half);
+    int substituted_right = substitute(right_half);
+    int combined_block = (substituted_left << 4) | substituted_right;
+    return permute(combined_block);
+}
+
+// Combine Components for Decryption
+int decrypt(int block, int key) {
+    int permuted_block = permute(block);  // Reverse the permutation
+    int left_half = (permuted_block >> 4) & 0x0F;
+    int right_half = permuted_block & 0x0F;
+    int substituted_left = substitute(left_half);
+    int substituted_right = substitute(right_half);
+    int combined_block = (substituted_left << 4) | substituted_right;
+    int feistel_output = feistel_function(substituted_right, key);
+    int decrypted_left = combined_block ^ feistel_output;
+    return decrypted_left;
+}
+
+// ECB Mode Encryption
+vector<int> ecb_encrypt(vector<int> blocks, int key) {
+    vector<int> encrypted_blocks;
+    for (int block : blocks) {
+        encrypted_blocks.push_back(encrypt(block, key));
+    }
+    return encrypted_blocks;
+}
+
+// ECB Mode Decryption
+vector<int> ecb_decrypt(vector<int> encrypted_blocks, int key) {
+    vector<int> decrypted_blocks;
+    for (int block : encrypted_blocks) {
+        decrypted_blocks.push_back(decrypt(block, key));
+    }
+    return decrypted_blocks;
+}
+
+// CBC Mode Encryption
+vector<int> cbc_encrypt(vector<int> blocks, int key, int iv) {
+    vector<int> encrypted_blocks;
+    int previous_block = iv;
+    for (int block : blocks) {
+        int xor_block = block ^ previous_block;  // XOR with previous ciphertext block
+        int encrypted_block = encrypt(xor_block, key);
+        encrypted_blocks.push_back(encrypted_block);
+        previous_block = encrypted_block;
+    }
+    return encrypted_blocks;
+}
+
+// CBC Mode Decryption
+vector<int> cbc_decrypt(vector<int> encrypted_blocks, int key, int iv) {
+    vector<int> decrypted_blocks;
+    int previous_block = iv;
+    for (int block : encrypted_blocks) {
+        int decrypted_block = decrypt(block, key);
+        decrypted_blocks.push_back(decrypted_block ^ previous_block);
+        previous_block = block;
+    }
+    return decrypted_blocks;
+}
+
+int main() {
+    // Example block and key
+    int key = 0b10101100;  // Example key
+    int iv = 0b00101101;   // Initialization Vector for CBC
+
+    // Define blocks to encrypt
+    vector<int> blocks = {0b11001010, 0b10100101, 0b11110000};
+
+    // ECB Mode
+    vector<int> encrypted_ecb = ecb_encrypt(blocks, key);
+    vector<int> decrypted_ecb = ecb_decrypt(encrypted_ecb, key);
+
+    cout << "ECB Mode:" << endl;
+    for (int block : encrypted_ecb) {
+        cout << "Encrypted: " << bitset<8>(block) << endl;
+    }
+    for (int block : decrypted_ecb) {
+        cout << "Decrypted: " << bitset<8>(block) << endl;
+    }
+
+    // CBC Mode
+    vector<int> encrypted_cbc = cbc_encrypt(blocks, key, iv);
+    vector<int> decrypted_cbc = cbc_decrypt(encrypted_cbc, key, iv);
+
+    cout << "CBC Mode:" << endl;
+    for (int block : encrypted_cbc) {
+        cout << "Encrypted: " << bitset<8>(block) << endl;
+    }
+    for (int block : decrypted_cbc) {
+        cout << "Decrypted: " << bitset<8>(block) << endl;
+    }
+
+    return 0;
+}
